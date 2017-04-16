@@ -8,7 +8,7 @@ export class Request {
     this.requestMap = new Map();
   }
 
-  delay({connId, timeout}) {
+  delay(connId, timeout) {
     let deffered = Q.defer(),
       timeStamp = new Date().getTime();
 
@@ -16,9 +16,10 @@ export class Request {
 
     setTimeout(() => {
       if (deffered.promise.isPending()) {
+        console.log(`request completed after ${timeout} delay for connection id ${connId}`);
         deffered.resolve({"status": 200, "msg": {"status": "ok"}});
       } else {
-        console.log("No promise to resolve after delay.");
+        console.log(`No promise to resolve after delay for connection id ${connId}`);
       }
     }, timeout * 1000);
 
@@ -26,9 +27,15 @@ export class Request {
   }
 
   getRequest(req, res) {
-    this.delay(req.params)
+    let {connId, timeout} = req.params;
+
+    console.log(`new get request recevied for connection id ${connId} and request timeout ${timeout}`);
+
+    this.delay(connId, timeout)
       .then(result => {
         let {status, msg} = result;
+
+        console.log(`request resolved for connection id ${connId}`);
 
         res.status(status).send(msg);
       })
@@ -39,25 +46,32 @@ export class Request {
   }
 
   getServerStatus(req, res) {
+
+    console.log(`get request recevied for server status`);
+
     let serverStatus = {};
 
     for (let [key, value] of this.requestMap) {
-      serverStatus[key] = value.timeout - ((new Date().getTime() - value.timeStamp) / 1000);
+      serverStatus[key] = Math.floor(value.timeout - ((new Date().getTime() - value.timeStamp) / 1000));
     }
+
+    console.log(`server status: ${JSON.stringify(serverStatus)}`);
 
     res.status(200).send(serverStatus);
   }
 
   killRequest(req, res) {
-    console.log("body ", req.body);
-
     let {connId} = req.body,
-      {deffered} = this.requestMap.get(connId);
+      {deffered} = this.requestMap.has(connId) ? this.requestMap.get(connId) : null;
+
+    console.log(`put request recevied to kill connection id ${connId}`);
 
     if (deffered && deffered.promise.isPending()) {
+      console.log(`killing request at connection id ${connId}`);
       deffered.resolve({"status": 200, "msg": {"status": "killed"}});
       res.status(200).send({"status": "ok"});
     } else {
+      console.log(`request not found at connection id ${connId}`);
       res.status(404).send({"status": "invalid", "connectionId": connId});
     }
   }
