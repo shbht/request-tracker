@@ -31,12 +31,18 @@ export class Request {
 
     console.log(`new get request recevied for connection id ${connId} and request timeout ${timeout}`);
 
+    if (this.requestMap.has(Number(connId))) {
+      console.log(`request is already running for connection id ${connId}`);
+      return res.status(200).send({"status": "already running"});
+    }
+
     this.delay(connId, timeout)
       .then(result => {
         let {status, msg} = result;
 
         console.log(`request resolved for connection id ${connId}`);
 
+        this.requestMap.delete(Number(connId));
         res.status(status).send(msg);
       })
       .catch(err => {
@@ -62,7 +68,7 @@ export class Request {
 
   killRequest(req, res) {
     let {connId} = req.body,
-      {deffered} = this.requestMap.has(connId) ? this.requestMap.get(connId) : null;
+      {deffered} = this.requestMap.has(Number(connId)) ? this.requestMap.get(Number(connId)) : {"deffered": null};
 
     console.log(`put request recevied to kill connection id ${connId}`);
 
